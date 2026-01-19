@@ -35,38 +35,49 @@ const MODEL = "llama-3.1-8b-instant";
  *   timeout?: number
  * }
  */
-app.post("/ai/generate", async (req, res) => {
-  try {
-    const { prompt, temperature = 0.7, timeout = 10000 } = req.body;
-
-    if (!prompt) {
-      return res.status(400).json({ error: "Prompt is required" });
-    }
-
-    const response = await axios.post(
-      GROQ_URL,
-      {
-        model: MODEL,
-        messages: [{ role: "user", content: prompt }],
-        temperature,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        timeout,
+console.log(
+    "GROQ_API_KEY present:",
+    Boolean(process.env.GROQ_API_KEY)
+  );
+  
+  app.post("/ai/generate", async (req, res) => {
+    try {
+      console.log(
+        "GROQ_API_KEY present:",
+        Boolean(process.env.GROQ_API_KEY)
+      );
+  
+      const { prompt, temperature = 0.7, timeout = 10000 } = req.body;
+  
+      if (!prompt) {
+        return res.status(400).json({ error: "Prompt is required" });
       }
-    );
-
-    res.json({
-      content: response.data.choices[0].message.content,
-    });
-  } catch (err) {
-    console.error(err?.response?.data || err.message);
-    res.status(500).json({ error: "AI request failed" });
-  }
-});
+  
+      const response = await axios.post(
+        GROQ_URL,
+        {
+          model: MODEL,
+          messages: [{ role: "user", content: prompt }],
+          temperature,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          timeout,
+        }
+      );
+  
+      res.json({
+        content: response.data.choices[0].message.content,
+      });
+    } catch (err) {
+      console.error("GROQ ERROR:", err?.response?.data || err.message);
+      res.status(500).json({ error: "AI request failed" });
+    }
+  });
+  
 
 /* ================= SERVER START ================= */
 const PORT = process.env.PORT || 3000;
