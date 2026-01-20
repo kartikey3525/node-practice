@@ -6,6 +6,12 @@ import express from "express";
 dotenv.config();
 
 const app = express();
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 20, // 20 AI requests per minute per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 /* ================= BASIC MIDDLEWARE ================= */
 app.use(cors());
@@ -40,7 +46,7 @@ console.log(
     Boolean(process.env.GROQ_API_KEY)
   );
   
-  app.post("/ai/generate", async (req, res) => {
+  app.post('/ai/generate', aiLimiter, async (req, res) => {
     try {
       console.log(
         "GROQ_API_KEY present:",
@@ -57,21 +63,32 @@ console.log(
         GROQ_URL,
         {
           model: MODEL,
-          messages: [{ role: "user", content: prompt }],
+          messages: [{ role: 'user', content: prompt }],
           temperature,
+          stream: false, // Groq supports stream=true later if needed
         },
         {
           headers: {
             Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
           timeout,
-        }
+        },
       );
-  
+      
+      const usage = response.data.usage || {};
+
+      console.log('AI USAGE:', {
+        prompt_tokens: usage.prompt_tokens,
+        completion_tokens: usage.completion_tokens,
+        total_tokens: usage.total_tokens,
+      });
+      
       res.json({
         content: response.data.choices[0].message.content,
+        usage,
       });
+      
     } catch (err) {
       console.error("GROQ ERROR:", err?.response?.data || err.message);
       res.status(500).json({ error: "AI request failed" });
